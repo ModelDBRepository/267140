@@ -1,0 +1,86 @@
+load_file("nrngui.hoc")
+
+xpanel("Combe et al 2021")
+  xlabel("Choose a simulation to run by clicking on a button below")
+  xlabel("Quit and restart if desired to run the other simulation")
+  xbutton("Soma 2s ramp; figure 4A1","{fig4a1()}")
+  xbutton("Soma 10s ramp; figure 4A2","{fig4a2()}")
+  xbutton("Dendrite 2s ramp; figure 4B1","{fig4b1()}")
+  xbutton("Dendrite 10s ramp; figure 4B2","{fig4b2()}")
+  xbutton("Soma 2s ramp remove I2; figure 6","{fig6s()}")
+  xbutton("Dendrite 2s ramp remove I2; figure 6","{fig6d()}")
+  xlabel("See the readme for instructions on how to create the other pairs of graphs and more.")
+xpanel()
+
+xpanel("Combe et al 2021 Alternate Morphologies")
+  xlabel("These are the alternate morphologies in Extended Figure 6")
+  xlabel("Choose a simulation to run by clicking on a button below")
+  xlabel("Quit and restart if desired to run the other simulation")
+  xlabel("Amaral Morphology c80761 see Figure 6 Extended 1")
+  xbutton("Soma 2s ramp; control","{amaralsoma()}")
+  xbutton("Soma 2s ramp; remove long term inactivated state","{amaralsomanoI2()}")
+  xbutton("Dendrite 2s ramp; control","{amaraldend()}")
+  xbutton("Dendrite 2s ramp; remove long term inactivated state","{amaraldendnoI2()}")
+  xlabel("Morphology pc1a see Figure 6 Extended 2")
+  xbutton("Soma 2s ramp; control","{pc1asoma()}")
+  xbutton("Soma 2s ramp; remove long term inactivated state","{pc1asomanoI2()}")
+  xbutton("Dendrite 2s ramp; control","{pc1adend()}")
+  xbutton("Dendrite 2s ramp; remove long term inactivated state","{pc1adendnoI2()}")
+  xlabel("See the readme for instructions on how to create the other pairs of graphs and more.")
+xpanel()
+
+proc fig4a1() {
+load_file("Figure4_A1.hoc")
+}
+
+proc fig4a2() {
+load_file("Figure4_A2.hoc")
+}
+
+proc fig4b1() {
+load_file("Figure4_B1.hoc")
+}
+
+proc fig4b2() {
+load_file("Figure4_B2.hoc")
+}
+
+proc fig6s() {
+load_file("Figure6_soma_noI2.hoc")
+}
+
+proc fig6d() {
+load_file("Figure6_dendrite_noI2.hoc")
+}
+
+proc amaralsoma() {
+load_file("ExtendedFigure6_c80761_control_soma.hoc")
+}
+
+proc amaralsomanoI2() {
+load_file("ExtendedFigure6_c80761_noI2_soma.hoc")
+}
+
+proc amaraldend() {
+load_file("ExtendedFigure6_c80761_control_dendrite.hoc")
+}
+
+proc amaraldendnoI2() {
+load_file("ExtendedFigure6_c80761_noI2_dendrite.hoc")
+}
+
+proc pc1asoma() {
+load_file("ExtendedFigure6_pc1a_control_soma.hoc")
+}
+
+proc pc1asomanoI2() {
+load_file("ExtendedFigure6_pc1a_noI2_soma.hoc")
+}
+
+proc pc1adend() {
+load_file("ExtendedFigure6_pc1a_control_dendrite.hoc")
+}
+
+proc pc1adendnoI2() {
+load_file("ExtendedFigure6_pc1a_noI2_dendrite.hoc")
+}

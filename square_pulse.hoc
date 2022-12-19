@@ -1,0 +1,168 @@
+Inject = 0
+back=0
+
+//////// load needed templates////////////
+if(!back){ load_file("nrngui.hoc")               }
+if(!back){ load_file("template/ObliquePath.hoc") }
+if(!back){ load_file("template/BasalPath.hoc"  ) }
+
+objref econ,f1,f2,f3,ss,cvode
+f1= new File()
+f2= new File()
+f3= new File()
+ss=new SaveState()                                                                  
+cvode = new CVode(1)
+x=cvode.active(1)
+
+restart=0
+v_init=-70
+
+strdef morphology_location, morpho_path, ObliqueTrunkSection, BasalTrunkSection
+objref vRP, vAPEX
+
+proc xopen_morphology(){
+	sprint(morpho_path,"%s/%s",morphology_location,$s1)
+	xopen(morpho_path)
+}
+
+// Carmen
+morphology_location = "pc2b"
+ObliqueTrunkSection = "trunk[17]"
+BasalTrunkSection   = "trunk[7]"
+
+xopen_morphology("cell.hoc")				//reads morpholofy from the file
+xopen_morphology("cell-analysis-simple.hoc") //reads simplified version of CA 
+
+
+xopen("lib/vector-distance.hoc")
+
+//-----------------------------------------------------------------------------------------------------
+printf("Setting up cell\n")                                         // load cell-setup to
+xopen("cell_setup_pc2b.hoc")                                             // specify all mechanisms, membrane properties etc
+
+
+///////////////////Load File//////////////////////
+
+//if(!back) load_file("kca.ses")
+if(!back) { load_file("basic.ses") }
+/*cvode_active(1)*/
+
+//////   Spike counter//////////
+
+objref apc, v1
+
+proc insert_APC() {
+	apc = new APCount(0.5)
+	apc.thresh = $1
+	v1 = new Vector()
+	apc.record(v1)
+}
+
+proc init() {
+	if(restart){
+		f1.ropen("state.old")
+		ss.fread(f1)
+		f1.close
+		finitialize(v_init)
+		ss.restore()
+		t=0
+		fcurrent()
+		cvode.re_init()
+	} else {
+		finitialize(v_init)
+		fcurrent()
+	}
+}
+
+            
+////////////////////Main///////////////////
+
+nsyn=10
+objref  s[nsyn], rsyn[nsyn], nc[nsyn]
+objref rsynmda[nsyn], ncnmda[nsyn]
+
+objref rect,recv,reci,savv,savi,savt
+objref TimeVector,AmplitudeVector,MyCurrentClamp
+proc main(){
+
+	recv =new Vector()
+	rect =new Vector()
+	reci =new Vector()
+
+	//tol=cvode.atolscale(&soma.v(0.5),1e-5)
+	period=95.75
+	phase0=67.8234
+	dur=3
+	amp2=0.0
+	tstop=16000
+
+	in=0
+
+	th=-14
+	access soma
+	insert_APC(th)
+
+	f3.wopen("spike.dat")
+	current=0.0 // 0.18
+	del=50
+	
+	StartTime=10000
+    CurrentBase=0.0
+    PulseAmplitude=-0.2
+    PulseDuration=500
+
+    if (Inject) {
+        //trunk[16] MyCurrentClamp=new CurrentClamp(0.3)
+    } else {
+        soma MyCurrentClamp=new CurrentClamp(0.5)
+    }
+
+    MyCurrentClamp.Delay=0
+    MyCurrentClamp.Duration=1e9	
+    TimeVector=new Vector(3)
+    TimeVector.x[0]=0
+    TimeVector.x[1]=StartTime
+    TimeVector.x[2]=StartTime+PulseDuration
+    AmplitudeVector=new Vector(3)
+    AmplitudeVector.x[0]=CurrentBase
+    AmplitudeVector.x[1]=CurrentBase+PulseAmplitude
+    AmplitudeVector.x[2]=CurrentBase
+    AmplitudeVector.play(&MyCurrentClamp.Amplitude,TimeVector)
+	
+	recv.record(&v(0.5))
+	rect.record(&t)
+	reci.record(&MyCurrentClamp.i)
+	//////////////run//////////////////////// 
+	run()
+	/////////////////////////////////////
+	savv= new File()
+	savt= new File()
+	savi = new File()
+
+	savv.wopen("v.txt")
+	savt.wopen("time.txt")
+	savi.wopen("i.txt")
+	
+	recv.printf(savv)
+	rect.printf(savt)
+	reci.printf(savi)
+	
+	savv.close
+	savt.close
+	savi.close
+	
+	// print the spike number 
+	if(!back) printf("\n Current: %.4f nA | # Spikes: %d\n", current,  apc.n)
+	if(!back) printf("___________________\n")
+	v1.printf(f3)
+
+	f3.close
+	f2.wopen("state.new")
+	ss.save
+	ss.fwrite(f2)
+	f2.close
+}
+
+
+main()
+/********    end file    ******/

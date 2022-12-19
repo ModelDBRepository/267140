@@ -1,0 +1,680 @@
+
+back=0
+
+//////// load needed templates////////////
+if(!back){ load_file("nrngui.hoc")               }
+if(!back){ load_file("template/ObliquePath.hoc") }
+if(!back){ load_file("template/BasalPath.hoc"  ) }
+
+objref econ,f1,f2,f3,ss,cvode
+f1= new File()
+f2= new File()
+f3= new File()
+ss=new SaveState()                                                                  
+cvode = new CVode(1)
+x=cvode.active(1)
+
+restart=0
+v_init=-70
+
+strdef morphology_location, morpho_path, ObliqueTrunkSection, BasalTrunkSection
+objref vRP, vAPEX
+
+proc xopen_morphology(){
+	sprint(morpho_path,"%s/%s",morphology_location,$s1)
+	xopen(morpho_path)
+}
+
+// Carmen
+morphology_location = "pc2b"
+ObliqueTrunkSection = "trunk[17]"
+BasalTrunkSection   = "trunk[7]"
+
+xopen_morphology("cell.hoc")				//reads morpholofy from the file
+xopen_morphology("cell-analysis-simple.hoc") //reads simplified version of CA 
+
+
+			// --------------- Creating lists-----------------
+
+xopen("lib/TP-lib.hoc")
+Tip_sections(apical_non_trunk_list,apical_trunk_list,"Apical")		
+objref apical_tip_list
+apical_tip_list=TP_list							// Apical Tip list
+
+print "apical_tip_list"
+apical_tip_list.printnames()
+print  "END apical_tip_list"
+
+objref tmp_pl[num_tips],pl[num_tips],opl[num_tips],degree_apical_tip,peri_trunk_list
+objref bl[num_tips],obl[num_tips],degree_basal_tip
+xopen("lib/Oblique-lib.hoc")
+oblique_sections(apical_tip_list,apical_trunk_list,num_tips)		// apical dendrite path lists and degree of tips
+
+xopen("lib/vector-distance.hoc")
+
+//-----------------------------------------------------------------------------------------------------
+printf("Setting up cell\n")                                         // load cell-setup to
+xopen("cell_setup_pc2b.hoc") 
+//load_file("atolscalekd.ses")                                            // specify all mechanisms, membrane properties etc
+
+
+/*cvode_active(1)*/
+
+//////   Spike counter//////////
+
+objref apc, v1
+
+proc insert_APC() {
+	apc = new APCount(0.5)
+	apc.thresh = $1
+	v1 = new Vector()
+	apc.record(v1)
+}
+
+proc init() {
+	if(restart){
+		f1.ropen("statekdsoma")
+		ss.fread(f1)
+		f1.close
+		finitialize(v_init)
+		ss.restore()
+		t=0
+		fcurrent()
+		cvode.re_init()
+	} else {
+		finitialize(v_init)
+		fcurrent()
+	}
+}
+
+            
+////////////////////Main///////////////////
+
+nsyn=10
+objref  s[nsyn], rsyn[nsyn], nc[nsyn]
+objref rsynmda[nsyn], ncnmda[nsyn]
+
+objref rect,recv,reci,savv,savi,savt
+objref tvec,ampvec,iclamp
+
+objref reciksoma, recisoma, recna16asoma, reci2soma
+//objref recinaaxon, recikaxon, recicaaxon, reciaxon need segs
+objref reciaxon
+objref savtot, savna16a, savi2soma
+objref SA
+objref savipas, ipasonly, ipaspart
+objref savk, konly, kpart
+//strdef command cars
+strdef makevar, makevarvector, recordvar, addto0, add, mult, filename, cmd
+//loop through to make recording variables
+for i=0,18{
+
+	sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+
+	for (x,0){
+		sprint(makevar,"%s%d%s%d", "objref rectrunki",i,"seg",x*1000)
+		execute(makevar)
+		printf(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref rectrunkik",i,"seg",x*1000)
+		execute(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref rectrunkna16a",i,"seg",x*1000)
+		execute(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref rectrunki2",i,"seg",x*1000)
+		execute(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref savtrunki2",i,"seg",x*1000)
+		execute(makevar)
+		}
+	}
+	
+for i=0,71{
+
+	sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+
+	for (x,0){
+		sprint(makevar,"%s%d%s%d", "objref recapici",i,"seg",x*1000)
+		execute(makevar)
+		//printf(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref recapicik",i,"seg",x*1000)
+		execute(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref recapicna16a",i,"seg",x*1000)
+		execute(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref recapici2",i,"seg",x*1000)
+		execute(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref savapici2",i,"seg",x*1000)
+		execute(makevar)
+		}
+	}
+	
+for i=0,50{
+
+	sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+
+		for (x,0){
+		sprint(makevar,"%s%d%s%d", "objref recdendi",i,"seg",x*1000)
+		execute(makevar)
+		//printf(makevar)
+		
+		sprint(makevar,"%s%d%s%d", "objref recdendik",i,"seg",x*1000)
+		execute(makevar)
+	
+		}
+		
+	}
+	
+	access axon
+		print(area(0.5))
+		print(nseg)
+
+	for (x,0){
+		sprint(makevar,"%s%d", "objref recaxoniseg",x*1000)
+		execute(makevar)
+		printf(makevar)
+		
+		sprint(makevar,"%s%d", "objref recaxonikseg",x*1000)
+		execute(makevar)
+		}
+
+	
+proc main(){
+
+	recv =new Vector()
+	rect =new Vector()
+	reci =new Vector()
+	
+	reciksoma =new Vector()
+	recisoma =new Vector()
+	recna16asoma =new Vector()
+	reci2soma =new Vector()
+	
+	access axon
+
+	for (x,0){
+		sprint(makevar,"%s%d%s", "recaxoniseg",x*1000,"=new Vector()")
+		execute(makevar)
+		printf(makevar)
+		
+		sprint(makevar,"%s%d%s", "recaxonikseg",x*1000,"=new Vector()")
+		execute(makevar)
+		
+		}
+	
+	for i=0,18{
+	
+		sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(makevarvector,"%s%d%s%d%s","rectrunki",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		sprint(makevarvector,"%s%d%s%d%s","rectrunkik",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		sprint(makevarvector,"%s%d%s%d%s","rectrunkna16a",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		sprint(makevarvector,"%s%d%s%d%s","rectrunki2",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		}
+	}
+	
+	for i=0,71{
+	
+		sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(makevarvector,"%s%d%s%d%s","recapici",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		sprint(makevarvector,"%s%d%s%d%s","recapicik",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+
+		sprint(makevarvector,"%s%d%s%d%s","recapicna16a",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		sprint(makevarvector,"%s%d%s%d%s","recapici2",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		}
+	}
+	
+	for i=0,50{
+	
+		sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(makevarvector,"%s%d%s%d%s","recdendi",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		sprint(makevarvector,"%s%d%s%d%s","recdendik",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		}
+	}
+
+		//tol=cvode.atolscale(&soma.v(0.5),1e-5)
+	period=95.75
+	phase0=67.8234
+	dur=3
+	amp2=0.0
+	tstop=14000//14000
+
+	in=0
+
+	th=-14
+	access soma
+	insert_APC(th)
+
+	f3.wopen("spike.dat")
+	current=0.0 // 0.18
+	del=50
+	npulse = 10
+	pulsdur = 5000
+	pulsamp = 0.44//0.44//
+	starttime = 3000
+        curbase = 0.12
+
+
+	trunk[10] {
+		iclamp = new IClamp( 0.5 )
+		tvec	= new Vector(5 )
+		ampvec = new Vector(5 )
+	}
+
+	iclamp.del = 0
+	iclamp.dur = 1e9
+		tvec.x[0 ] = 0
+		tvec.x[1 ] = starttime
+		tvec.x[2 ] = starttime + pulsdur
+		tvec.x[3 ] = starttime + 2*pulsdur
+		tvec.x[4 ] = tstop
+		ampvec.x[0  ] = curbase
+		ampvec.x[1  ] = curbase
+		ampvec.x[2  ] = curbase + pulsamp
+		ampvec.x[3  ] = curbase
+		ampvec.x[4  ] = curbase
+	ampvec.play(&iclamp.amp,tvec,1)
+	
+	access trunk[10]
+	recv.record(&v(0.5))
+	rect.record(&t)
+	reci.record(&iclamp.i)
+	
+	//reciksoma.record(&soma[0].i_kad(0.5))
+	recisoma.record(&soma[0].i_pas(0.5))
+
+	recna16asoma.record(&soma[0].ina_na16a(0.5))
+	reci2soma.record(&soma[0].I2_na16a(0.5))
+	
+	
+	access axon
+	for (x,0){
+		sprint(makevar,"%s%d%s", "recaxoniseg",x*1000,".record(&axon[0].i_pas(x))")
+		execute(makevar)
+		printf(makevar)
+				
+		//sprint(makevar,"%s%d%s", "recaxonikseg",x*1000,".record(&axon[0].i_kad(x))")
+		//execute(makevar)
+		}
+		
+		
+	//loop through all other compartments
+	for i=0,18{
+		sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","rectrunki",i,"seg",x*1000,".record(&trunk[",i,"].i_pas(",x,"))")
+		execute(recordvar)
+		printf(recordvar)
+		
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","rectrunkik",i,"seg",x*1000,".record(&trunk[",i,"].i_kad(",x,"))")
+		execute(recordvar)
+		
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","rectrunkna16a",i,"seg",x*1000,".record(&trunk[",i,"].ina_na16a(",x,"))")
+		execute(recordvar)
+		
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","rectrunki2",i,"seg",x*1000,".record(&trunk[",i,"].I2_na16a(",x,"))")
+		execute(recordvar)
+		}
+	}
+	
+	for i=0,71{
+	
+		sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recapici",i,"seg",x*1000,".record(&apic[",i,"].i_pas(",x,"))")
+		execute(recordvar)
+		
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recapicik",i,"seg",x*1000,".record(&apic[",i,"].i_kad(",x,"))")
+		execute(recordvar)
+		
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recapicna16a",i,"seg",x*1000,".record(&apic[",i,"].ina_na16a(",x,"))")
+		execute(recordvar)
+		
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recapici2",i,"seg",x*1000,".record(&apic[",i,"].I2_na16a(",x,"))")
+		execute(recordvar)
+		}
+	}
+	
+	for i=0,50{
+		sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recdendi",i,"seg",x*1000,".record(&dend[",i,"].i_pas(",x,"))")
+		execute(recordvar)
+
+		//sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recdendik",i,"seg",x*1000,".record(&dend[",i,"].i_kad(",x,"))")
+		//execute(recordvar)
+		}
+	}
+	
+	
+	
+	if(!back) { load_file("somastates.ses") } 
+
+	//////////////run//////////////////////// 
+	run()
+	/////////////////////////////////////
+	savv= new File()
+	savt= new File()
+	savi = new File()
+
+	savv.wopen("dv.txt")
+	savt.wopen("dtime.txt")
+	savi.wopen("di.txt")
+	
+	recv.printf(savv)
+	rect.printf(savt)
+	reci.printf(savi)
+	
+	savv.close
+	savt.close
+	savi.close
+	
+	savi2soma=new File()
+	savi2soma.wopen("somai2.txt")
+	reci2soma.printf(savi2soma)
+	savi2soma.close()
+	
+	//keep ipas separate
+	ipasonly=recisoma
+	//konly=reciksoma
+	
+	
+	//mutliply by surface area
+	access soma[0]
+	print(area(0.5))
+	print(nseg)
+	recisoma.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	recna16asoma.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	
+	ipasonly.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	//konly.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	
+	access axon
+	for (x,0){
+	sprint(cmd,"%s%d","ipaspart=recaxoniseg",x*1000)
+	execute(cmd)
+
+	ipaspart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+	ipasonly.add(ipaspart)
+	
+	//sprint(cmd,"%s%d","kpart=recaxonikseg",x*1000)
+	//execute(cmd)
+	//kpart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+	//konly.add(kpart)
+	
+	//mutliply by surface area
+	sprint(cmd,"%s%d%s","recaxoniseg",x*1000,".mul(area(x)*1e-8)")//1e-8 to convert from um^2 to cm^2
+	execute(cmd)
+	
+	//add to soma current
+	sprint(cmd,"%s%d%s","recisoma.add(reciaxonseg",x*1000,")")
+	}
+	
+	
+	//loopingthroughcurrents
+	//make file to save results
+	savtot=new File()
+	savtot.wopen("totcurrents.txt")
+	
+	savna16a=new File()
+	savna16a.wopen("totna16a.txt")
+	
+	savipas=new File()
+	savipas.wopen("onlyipas.txt")
+	
+	savk=new File()
+	savk.wopen("onlykad.txt")
+	
+	//prepare first record by summing all types of current and multiplying by surface area
+	ipaspart=rectrunki0seg500
+	access trunk[0]
+	ipaspart.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	ipasonly.add(ipaspart)
+	
+	kpart=rectrunkik0seg500
+	kpart.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	//konly.add(kpart)
+	konly=kpart
+	
+	rectrunki0seg500.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	//na16a separate
+	rectrunkna16a0seg500.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	
+	savtrunki20seg500=new File()
+	savtrunki20seg500.wopen("trunki2_0.txt")
+	rectrunki20seg500.printf(savtrunki20seg500)
+	savtrunki20seg500.close()
+	
+	for i=1,18{
+	
+		sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		
+		for (x,0){
+		//separate ipas
+		sprint(cmd,"%s%d%s%d", "ipaspart=rectrunki",i,"seg",x*1000)
+		execute(cmd)
+		ipaspart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+		ipasonly.add(ipaspart)
+		
+		//separate k
+		sprint(cmd,"%s%d%s%d", "kpart=rectrunkik",i,"seg",x*1000)
+		execute(cmd)
+		kpart.mul(area(x)*1e-8)
+		konly.add(kpart)
+		
+		
+		//multiple by surface area
+		sprint(mult,"%s%d%s%d%s", "rectrunki",i,"seg",x*1000,".mul(area(x)*1e-8)")//1e-8 to convert from um^2 to cm^2
+		execute(mult)
+		
+		//na16a separate
+		sprint(mult,"%s%d%s%d%s", "rectrunkna16a",i,"seg",x*1000,".mul(area(x)*1e-8)")
+		execute(mult)
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunki0seg500.add(rectrunki",i,"seg",x*1000,")")
+		execute(addto0)
+		printf(addto0)
+		
+		//na16a separate
+		sprint(addto0,"%s%d%s%d%s", "rectrunkna16a0seg500.add(rectrunkna16a",i,"seg",x*1000,")")
+		execute(addto0)
+		printf(addto0)
+		
+		//all the i2s
+		sprint(makevar,"%s%d%s%d%s", "savtrunki2",i,"seg",x*1000,"=new File()")
+		execute(makevar)
+		sprint(filename,"%s%d%s%d%s","trunki2_",i,"seg",x*1000,".txt")
+		sprint(makevar,"%s%d%s%d%s", "savtrunki2",i,"seg",x*1000,".wopen(filename)")
+		execute(makevar)
+		sprint(makevar,"%s%d%s%d%s%d%s%d%s", "rectrunki2",i,"seg",x*1000,".printf(savtrunki2",i,"seg",x*1000,")")
+		execute(makevar)
+		sprint(makevar,"%s%d%s%d%s", "savtrunki2",i,"seg",x*1000,".close()")
+		execute(makevar)
+		}
+		
+	}
+	
+	
+	for i=0,71{
+	
+		sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+	
+		for (x,0){
+	
+		//separate ipas
+		sprint(cmd,"%s%d%s%d", "ipaspart=recapici",i,"seg",x*1000)
+		execute(cmd)
+		ipaspart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+		ipasonly.add(ipaspart)
+		
+		//separate k
+		sprint(cmd,"%s%d%s%d", "kpart=recapicik",i,"seg",x*1000)
+		execute(cmd)
+		kpart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+		konly.add(kpart)
+		
+		//multiple by surface area
+		sprint(mult,"%s%d%s%d%s", "recapici",i,"seg",x*1000,".mul(area(x)*1e-8)")
+		execute(mult)
+		
+		//multiple by surface area na16a separate
+		sprint(mult,"%s%d%s%d%s", "recapicna16a",i,"seg",x*1000,".mul(area(x)*1e-8)")
+		execute(mult)
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunki0seg500.add(recapici",i,"seg",x*1000,")")
+		execute(addto0)
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunkna16a0.add(recapicna16a",i,"seg",x*1000,")")
+		//printf(addto0)
+		
+				//all the i2s
+		sprint(makevar,"%s%d%s%d%s", "savapici2",i,"seg",x*1000,"=new File()")
+		execute(makevar)
+		sprint(filename,"%s%d%s%d%s","apici2_",i,"seg",x*1000,".txt")
+		sprint(makevar,"%s%d%s%d%s", "savapici2",i,"seg",x*1000,".wopen(filename)")
+		execute(makevar)
+		sprint(makevar,"%s%d%s%d%s%d%s%d%s", "recapici2",i,"seg",x*1000,".printf(savapici2",i,"seg",x*1000,")")
+		execute(makevar)
+		sprint(makevar,"%s%d%s%d%s", "savapici2",i,"seg",x*1000,".close()")
+		}
+	}
+	
+	for i=0,50{
+	
+		sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		//separate ipas
+		sprint(cmd,"%s%d%s%d", "ipaspart=recdendi",i,"seg",x*1000)
+		execute(cmd)
+		ipaspart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+
+		ipasonly.add(ipaspart)
+		
+		//separate ipas
+		//sprint(cmd,"%s%d%s%d", "kpart=recdendik",i,"seg",x*1000)
+		//execute(cmd)
+		//kpart.mul(area(x)*1e-8)//1e-8 to convert from um^2 to cm^2
+		
+		//konly.add(kpart)
+		
+		//multiple by surface area
+		sprint(mult,"%s%d%s%d%s", "recdendi",i,"seg",x*1000,".mul(area(x)*1e-8)")
+		execute(mult)
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunki0seg500.add(recdendi",i,"seg",x*1000,")")
+		execute(addto0)
+		printf(addto0)
+		}
+	}
+	
+	//add soma current and axon current because we added that in to the soma current
+	rectrunki0seg500.add(recisoma)
+
+	
+	//print to file
+	rectrunki0seg500.printf(savtot)
+	//close file
+	savtot.close
+	
+	//print to file
+	ipasonly.printf(savipas)
+	//close file
+	savipas.close
+	
+	//print to file
+	konly.printf(savk)
+	//close file
+	savk.close
+	
+	//na16a separate
+	rectrunkna16a0seg500.add(recna16asoma)
+	rectrunkna16a0seg500.printf(savna16a)
+	savna16a.close
+	
+	
+	// print the spike number 
+	if(!back) printf("\n Current: %.4f nA | # Spikes: %d\n", current,  apc.n)
+	if(!back) printf("___________________\n")
+	v1.printf(f3)
+
+	f3.close
+	f2.wopen("state.new")
+	ss.save
+	ss.fwrite(f2)
+	f2.close
+}
+
+
+main()
+/********    end file    ******/

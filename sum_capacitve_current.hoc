@@ -1,0 +1,464 @@
+back=0
+
+//////// load needed templates////////////
+if(!back){ load_file("nrngui.hoc")               }
+if(!back){ load_file("template/ObliquePath.hoc") }
+if(!back){ load_file("template/BasalPath.hoc"  ) }
+
+objref econ,f1,f2,f3,ss,cvode
+f1= new File()
+f2= new File()
+f3= new File()
+ss=new SaveState()                                                                  
+cvode = new CVode(1)
+x=cvode.active(1)
+
+restart=0
+v_init=-70
+
+strdef morphology_location, morpho_path, ObliqueTrunkSection, BasalTrunkSection
+objref vRP, vAPEX
+
+proc xopen_morphology(){
+	sprint(morpho_path,"%s/%s",morphology_location,$s1)
+	xopen(morpho_path)
+}
+
+// Carmen
+morphology_location = "pc2b"
+ObliqueTrunkSection = "trunk[17]"
+BasalTrunkSection   = "trunk[7]"
+
+xopen_morphology("cell.hoc")				//reads morpholofy from the file
+xopen_morphology("cell-analysis-simple.hoc") //reads simplified version of CA 
+
+
+			// --------------- Creating lists-----------------
+
+xopen("lib/TP-lib.hoc")
+Tip_sections(apical_non_trunk_list,apical_trunk_list,"Apical")		
+objref apical_tip_list
+apical_tip_list=TP_list							// Apical Tip list
+
+print "apical_tip_list"
+apical_tip_list.printnames()
+print  "END apical_tip_list"
+
+objref tmp_pl[num_tips],pl[num_tips],opl[num_tips],degree_apical_tip,peri_trunk_list
+objref bl[num_tips],obl[num_tips],degree_basal_tip
+xopen("lib/Oblique-lib.hoc")
+oblique_sections(apical_tip_list,apical_trunk_list,num_tips)		// apical dendrite path lists and degree of tips
+
+xopen("lib/vector-distance.hoc")
+
+//-----------------------------------------------------------------------------------------------------
+printf("Setting up cell\n")                                         // load cell-setup to
+xopen("cell_setup_pc2b.hoc") 
+//load_file("atolscalekd.ses")                                            // specify all mechanisms, membrane properties etc
+
+
+/*cvode_active(1)*/
+
+//////   Spike counter//////////
+
+objref apc, v1
+
+proc insert_APC() {
+	apc = new APCount(0.5)
+	apc.thresh = $1
+	v1 = new Vector()
+	apc.record(v1)
+}
+
+proc init() {
+	if(restart){
+		f1.ropen("statekdsoma")
+		ss.fread(f1)
+		f1.close
+		finitialize(v_init)
+		ss.restore()
+		t=0
+		fcurrent()
+		cvode.re_init()
+	} else {
+		finitialize(v_init)
+		fcurrent()
+	}
+}
+
+            
+////////////////////Main///////////////////
+
+nsyn=10
+objref  s[nsyn], rsyn[nsyn], nc[nsyn]
+objref rsynmda[nsyn], ncnmda[nsyn]
+
+objref rect,recv,reci,savv,savi,savt
+objref tvec,ampvec,iclamp
+
+objref recisoma
+//objref recinaaxon, recikaxon, recicaaxon, reciaxon need segs
+objref reciaxon
+objref savtot
+objref SA
+
+//strdef command cars
+strdef makevar, makevarvector, recordvar, addto0, add, mult, filename, cmd
+//loop through to make recording variables
+for i=0,18{
+
+	sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+
+	for (x,0){
+		sprint(makevar,"%s%d%s%d", "objref rectrunki",i,"seg",x*1000)
+		execute(makevar)
+		printf(makevar)
+		}
+	}
+	
+for i=0,71{
+
+	sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+
+	for (x,0){
+		sprint(makevar,"%s%d%s%d", "objref recapici",i,"seg",x*1000)
+		execute(makevar)
+		
+		}
+	}
+	
+for i=0,50{
+
+	sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+
+		for (x,0){
+		sprint(makevar,"%s%d%s%d", "objref recdendi",i,"seg",x*1000)
+		execute(makevar)
+		//printf(makevar)
+		}
+		
+	}
+	
+	access axon
+		print(area(0.5))
+		print(nseg)
+
+	for (x,0){
+		sprint(makevar,"%s%d", "objref recaxoniseg",x*1000)
+		execute(makevar)
+		printf(makevar)
+				
+		}
+
+	
+proc main(){
+
+	recv =new Vector()
+	rect =new Vector()
+	reci =new Vector()
+	
+	recisoma =new Vector()
+	
+	access axon
+
+	for (x,0){
+		sprint(makevar,"%s%d%s", "recaxoniseg",x*1000,"=new Vector()")
+		execute(makevar)
+		printf(makevar)
+				
+		}
+	
+	for i=0,18{
+	
+		sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(makevarvector,"%s%d%s%d%s","rectrunki",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+
+		}
+	}
+	
+	for i=0,71{
+	
+		sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(makevarvector,"%s%d%s%d%s","recapici",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		}
+	}
+	
+	for i=0,50{
+	
+		sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(makevarvector,"%s%d%s%d%s","recdendi",i,"seg",x*1000,"=new Vector()")
+		execute(makevarvector)
+		
+		}
+	}
+
+		//tol=cvode.atolscale(&soma.v(0.5),1e-5)
+	period=95.75
+	phase0=67.8234
+	dur=3
+	amp2=0.0
+	tstop=14000//14000
+
+	in=0
+
+	th=-14
+	access soma
+	insert_APC(th)
+
+	f3.wopen("spike.dat")
+	current=0.0 // 0.18
+	del=50
+	npulse = 10
+	pulsdur = 5000
+	pulsamp = 0.44//0.44//
+	starttime = 3000
+        curbase = 0.12
+
+
+	trunk[10] {
+		iclamp = new IClamp( 0.5 )
+		tvec	= new Vector(5 )
+		ampvec = new Vector(5 )
+	}
+
+	iclamp.del = 0
+	iclamp.dur = 1e9
+		tvec.x[0 ] = 0
+		tvec.x[1 ] = starttime
+		tvec.x[2 ] = starttime + pulsdur
+		tvec.x[3 ] = starttime + 2*pulsdur
+		tvec.x[4 ] = tstop
+		ampvec.x[0  ] = curbase
+		ampvec.x[1  ] = curbase
+		ampvec.x[2  ] = curbase + pulsamp
+		ampvec.x[3  ] = curbase
+		ampvec.x[4  ] = curbase
+	ampvec.play(&iclamp.amp,tvec,1)
+	
+	access trunk[10]
+	recv.record(&v(0.5))
+	rect.record(&t)
+	reci.record(&iclamp.i)
+	
+
+	recisoma.record(&soma[0].i_cap(0.5))
+
+	
+	access axon
+	for (x,0){
+		sprint(makevar,"%s%d%s", "recaxoniseg",x*1000,".record(&axon[0].i_cap(x))")
+		execute(makevar)
+		printf(makevar)
+				
+		}
+		
+		
+	//loop through all other compartments
+	for i=0,18{
+		sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","rectrunki",i,"seg",x*1000,".record(&trunk[",i,"].i_cap(",x,"))")
+		execute(recordvar)
+		printf(recordvar)
+		}
+	}
+	
+	for i=0,71{
+	
+		sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recapici",i,"seg",x*1000,".record(&apic[",i,"].i_cap(",x,"))")
+		execute(recordvar)
+		
+		}
+	}
+	
+	for i=0,50{
+		sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		sprint(recordvar,"%s%d%s%d%s%d%s%g%s","recdendi",i,"seg",x*1000,".record(&dend[",i,"].i_cap(",x,"))")
+		execute(recordvar)
+
+		}
+	}
+	
+	
+	
+	if(!back) { load_file("somastates.ses") } 
+
+	//////////////run//////////////////////// 
+	run()
+	/////////////////////////////////////
+	savv= new File()
+	savt= new File()
+	savi = new File()
+
+	savv.wopen("dv.txt")
+	savt.wopen("dtime.txt")
+	savi.wopen("di.txt")
+	
+	recv.printf(savv)
+	rect.printf(savt)
+	reci.printf(savi)
+	
+	savv.close
+	savt.close
+	savi.close
+	
+
+	//mutliply by surface area
+	access soma[0]
+	print(area(0.5))
+	print(nseg)
+	recisoma.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	
+	access axon
+	for (x,0){
+	
+	//mutliply by surface area
+	sprint(cmd,"%s%d%s","recaxoniseg",x*1000,".mul(area(x)*1e-8)")//1e-8 to convert from um^2 to cm^2
+	execute(cmd)
+	
+	//add to soma current
+	sprint(cmd,"%s%d%s","recisoma.add(reciaxonseg",x*1000,")")
+	}
+	
+	
+	//loopingthroughcurrents
+	//make file to save results
+	savtot=new File()
+	savtot.wopen("totcurrents.txt")
+	
+	rectrunki0seg500.mul(area(0.5)*1e-8)//1e-8 to convert from um^2 to cm^2
+	
+	
+	for i=1,18{
+	
+		sprint(cmd,"%s%d%s","access trunk[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		
+		for (x,0){
+		
+		//multiple by surface area
+		sprint(mult,"%s%d%s%d%s", "rectrunki",i,"seg",x*1000,".mul(area(x)*1e-8)")//1e-8 to convert from um^2 to cm^2
+		execute(mult)
+		
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunki0seg500.add(rectrunki",i,"seg",x*1000,")")
+		execute(addto0)
+		printf(addto0)
+		
+		}
+		
+	}
+	
+	
+	for i=0,71{
+	
+		sprint(cmd,"%s%d%s","access apic[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+	
+		for (x,0){
+		
+		//multiple by surface area
+		sprint(mult,"%s%d%s%d%s", "recapici",i,"seg",x*1000,".mul(area(x)*1e-8)")
+		execute(mult)
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunki0seg500.add(recapici",i,"seg",x*1000,")")
+		execute(addto0)
+		
+		}
+	}
+	
+	for i=0,50{
+	
+		sprint(cmd,"%s%d%s","access dend[",i,"]")
+		execute(cmd)
+		print(area(0.5))
+		print(nseg)
+		
+		for (x,0){
+		
+		//multiple by surface area
+		sprint(mult,"%s%d%s%d%s", "recdendi",i,"seg",x*1000,".mul(area(x)*1e-8)")
+		execute(mult)
+		
+		//add to one file
+		sprint(addto0,"%s%d%s%d%s", "rectrunki0seg500.add(recdendi",i,"seg",x*1000,")")
+		execute(addto0)
+		printf(addto0)
+		}
+	}
+	
+	//add soma current and axon current because we added that in to the soma current
+	rectrunki0seg500.add(recisoma)
+
+	
+	//print to file
+	rectrunki0seg500.printf(savtot)
+	//close file
+	savtot.close
+	
+	
+	
+	// print the spike number 
+	if(!back) printf("\n Current: %.4f nA | # Spikes: %d\n", current,  apc.n)
+	if(!back) printf("___________________\n")
+	v1.printf(f3)
+
+	f3.close
+	f2.wopen("state.new")
+	ss.save
+	ss.fwrite(f2)
+	f2.close
+}
+
+
+main()
+/********    end file    ******/
